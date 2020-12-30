@@ -1884,6 +1884,9 @@ im_setmode(ImagingObject* self, PyObject* args)
 static PyObject*
 _transform2(ImagingObject* self, PyObject* args)
 {
+    struct timespec start, end;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+
     static const char* wrong_number = "wrong number of matrix entries";
 
     Imaging imOut;
@@ -1931,6 +1934,11 @@ _transform2(ImagingObject* self, PyObject* args)
         return NULL;
 
     Py_INCREF(Py_None);
+
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+    double dur = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000;
+    dur /= 1000000;
+    printf("    _transform2: %f\n", dur);
     return Py_None;
 }
 

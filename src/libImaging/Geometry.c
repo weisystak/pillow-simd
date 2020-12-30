@@ -1,4 +1,6 @@
 #include "Imaging.h"
+#include <omp.h>
+#include <time.h>
 
 /* For large images rotation is an inefficient operation in terms of CPU cache.
    One row in the source image affects each column in destination.
@@ -745,7 +747,7 @@ ImagingGenericTransform(
     /* slow generic transformation.  use ImagingTransformAffine or
        ImagingScaleAffine where possible. */
 
-    ImagingSectionCookie cookie;
+    // ImagingSectionCookie cookie;
     int x, y;
     char *out;
     double xx, yy;
@@ -759,7 +761,7 @@ ImagingGenericTransform(
 
     ImagingCopyPalette(imOut, imIn);
 
-    ImagingSectionEnter(&cookie);
+    // ImagingSectionEnter(&cookie);
 
     if (x0 < 0)
         x0 = 0;
@@ -769,20 +771,45 @@ ImagingGenericTransform(
         x1 = imOut->xsize;
     if (y1 > imOut->ysize)
         y1 = imOut->ysize;
+    
+    struct timespec start, end;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 
-    for (y = y0; y < y1; y++) {
-        out = imOut->image[y] + x0*imOut->pixelsize;
-        for (x = x0; x < x1; x++) {
-            if ( ! transform(&xx, &yy, x-x0, y-y0, transform_data) ||
-                 ! filter(out, imIn, xx, yy)) {
-                if (fill)
-                    memset(out, 0, imOut->pixelsize);
+    // for (y = y0; y < y1; y++) {
+    //         out = imOut->image[y] + x0*imOut->pixelsize;
+    //         for (x = x0; x < x1; x++) {
+    //             if ( ! transform(&xx, &yy, x-x0, y-y0, transform_data) ||
+    //                 ! filter(out, imIn, xx, yy)) {
+    //                 if (fill)
+    //                     memset(out, 0, imOut->pixelsize);
+    //             }
+    //             out += imOut->pixelsize;
+    //         }
+    // }
+    #pragma omp parallel private(out, xx, yy, y, x)
+    {
+        // int n = omp_get_max_threads();
+        // printf("omp_get_max_threads: %d\n", n);
+        #pragma omp for
+        for (y = y0; y < y1; y++) {
+            out = imOut->image[y] + x0*imOut->pixelsize;
+            for (x = x0; x < x1; x++) {
+                if ( ! transform(&xx, &yy, x-x0, y-y0, transform_data) ||
+                    ! filter(out, imIn, xx, yy)) {
+                    if (fill)
+                        memset(out, 0, imOut->pixelsize);
+                }
+                out += imOut->pixelsize;
             }
-            out += imOut->pixelsize;
         }
     }
+    
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+    double dur = (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000;
+    dur /= 1000000;
+    printf("        ImagingGenericTransform: %f\n", dur);
 
-    ImagingSectionLeave(&cookie);
+    // ImagingSectionLeave(&cookie);
 
     return imOut;
 }

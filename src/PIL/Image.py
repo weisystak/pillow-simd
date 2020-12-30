@@ -57,7 +57,8 @@ class DecompressionBombError(Exception):
 
 
 # Limit to around a quarter gigabyte for a 24 bit (3 bpp) image
-MAX_IMAGE_PIXELS = int(1024 * 1024 * 1024 // 4 // 3)
+# MAX_IMAGE_PIXELS = int(1024 * 1024 * 1024 // 4 // 3)
+MAX_IMAGE_PIXELS = int(40000*40000*3*10)
 
 
 try:
@@ -2417,9 +2418,10 @@ class Image:
 
         if image.mode in ("1", "P"):
             resample = NEAREST
-
+        import time
+        s = time.time()
         self.im.transform2(box, image.im, method, data, resample, fill)
-
+        print(f'im.transform: {time.time()-s}')
     def transpose(self, method):
         """
         Transpose image (flip or rotate in 90 degree steps)
