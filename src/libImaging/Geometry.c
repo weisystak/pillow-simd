@@ -1,6 +1,7 @@
 #include "Imaging.h"
 #include <omp.h>
 #include <time.h>
+#include <immintrin.h>
 
 /* For large images rotation is an inefficient operation in terms of CPU cache.
    One row in the source image affects each column in destination.
@@ -363,14 +364,23 @@ affine_transform(double* xout, double* yout, int x, int y, void* data)
        install Service Pack 3 */
 
     double* a = (double*) data;
-    double a0 = a[0]; double a1 = a[1]; double a2 = a[2];
-    double a3 = a[3]; double a4 = a[4]; double a5 = a[5];
+    // double a0 = a[0]; double a1 = a[1]; double a2 = a[2];
+    // double a3 = a[3]; double a4 = a[4]; double a5 = a[5];
 
-    double xin = x + 0.5;
-    double yin = y + 0.5;
+    __m256d v1 = _mm256_set_pd(a[0], a[1], a[3], a[4]);
+    // double xin = x + 0.5;
+    // double yin = y + 0.5;
+    __m256d v2 = _mm256_set_pd(x, 0.5, y, 0.5);
+    v2 = _mm256_hadd_pd(v2, v2);
+    __m256d res = _mm256_mul_pd(v1, v2);
+    res = _mm256_hadd_pd(res, _mm256_set_pd(a[2], 0.0, a[5], 0.0));
+    res =  _mm256_hadd_pd(res, res);
+    double* z = (double*) res;
+    xout[0] = z[0];
+    yout[0] = z[2];
 
-    xout[0] = a0*xin + a1*yin + a2;
-    yout[0] = a3*xin + a4*yin + a5;
+    // xout[0] = a0*xin + a1*yin + a2;
+    // yout[0] = a3*xin + a4*yin + a5;
 
     return 1;
 }
@@ -775,17 +785,6 @@ ImagingGenericTransform(
     struct timespec start, end;
     clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 
-    // for (y = y0; y < y1; y++) {
-    //         out = imOut->image[y] + x0*imOut->pixelsize;
-    //         for (x = x0; x < x1; x++) {
-    //             if ( ! transform(&xx, &yy, x-x0, y-y0, transform_data) ||
-    //                 ! filter(out, imIn, xx, yy)) {
-    //                 if (fill)
-    //                     memset(out, 0, imOut->pixelsize);
-    //             }
-    //             out += imOut->pixelsize;
-    //         }
-    // }
     #pragma omp parallel private(out, xx, yy, y, x)
     {
         // int n = omp_get_max_threads();
