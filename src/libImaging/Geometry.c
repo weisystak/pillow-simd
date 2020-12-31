@@ -367,15 +367,14 @@ affine_transform(double* xout, double* yout, int x, int y, void* data)
     // double a0 = a[0]; double a1 = a[1]; double a2 = a[2];
     // double a3 = a[3]; double a4 = a[4]; double a5 = a[5];
 
-    __m256d v1 = _mm256_set_pd(a[0], a[1], a[3], a[4]);
+    __m256d v1 = _mm256_setr_pd(a[0], a[1], a[3], a[4]);
     // double xin = x + 0.5;
     // double yin = y + 0.5;
-    __m256d v2 = _mm256_set_pd(x, 0.5, y, 0.5);
-    v2 = _mm256_hadd_pd(v2, v2);
+    __m256d v2 = _mm256_hadd_pd( _mm256_setr_pd(x, 0.5, x, 0.5),  _mm256_setr_pd(y, 0.5, y, 0.5));
     __m256d res = _mm256_mul_pd(v1, v2);
-    res = _mm256_hadd_pd(res, _mm256_set_pd(a[2], 0.0, a[5], 0.0));
+    res = _mm256_hadd_pd(res, _mm256_setr_pd(a[2], 0.0, a[5], 0.0));
     res =  _mm256_hadd_pd(res, res);
-    double* z = (double*) res;
+    double* z = (double*) &res;
     xout[0] = z[0];
     yout[0] = z[2];
 
